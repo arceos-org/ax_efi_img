@@ -22,6 +22,36 @@
 			      : "memory");			\
 })
 
+#define sstatus_set(val)                 \
+({                              \
+    unsigned long __v = (unsigned long)(val);       \
+    __asm__ __volatile__ ("csrs sstatus, %0" \
+                  : : "rK" (__v)            \
+                  : "memory");          \
+})
+
+#define sstatus_clear(val)                 \
+({                              \
+    unsigned long __v = (unsigned long)(val);       \
+    __asm__ __volatile__ ("csrc sstatus, %0" \
+                  : : "rK" (__v)            \
+                  : "memory");          \
+})
+
+#define csr_reset_sie(val)					    \
+({								                \
+	__asm__ __volatile__ ("csrw sie, zero");    \
+})
+
+#define csr_reset_sip(val)					    \
+({								                \
+	__asm__ __volatile__ ("csrw sip, zero");    \
+})
+
+#define SR_SIE      0x00000002UL    /* Supervisor Interrupt Enable */
+#define SR_SPIE     0x00000020UL    /* Previous Supervisor IE */
+#define SR_SPP      0x00000100UL
+
 #define ARCEOS_BASE     0x80200000
 
 #define PAYLOAD_SIZE_1_POS  0x150
@@ -41,10 +71,17 @@ void __noreturn efi_enter_kernel(unsigned long entrypoint, unsigned long fdt,
 	/*
 	 * Jump to real kernel here with following constraints.
 	 * 1. MMU should be disabled.
-	 * 2. a0 should contain hartid
-	 * 3. a1 should DT address
+	 * 2. SIE bit in SSTATUS should be cleared.
+	 * 3. SIE&&SIP should be disabled.
+	 * 4. a0 should contain hartid
+	 * 5. a1 should DT address
 	 */
 	csr_reset_satp(0);
+    sstatus_clear(SR_SIE);
+    sstatus_clear(SR_SPIE);
+    sstatus_set(SR_SPP);
+    csr_reset_sie(0);
+    csr_reset_sip(0);
 	jump_kernel(hartid, fdt);
 }
 
