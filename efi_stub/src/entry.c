@@ -48,6 +48,11 @@
 	__asm__ __volatile__ ("csrw sip, zero");    \
 })
 
+#define csr_reset_sscratch(val)					    \
+({								                \
+	__asm__ __volatile__ ("csrw sscratch, zero");    \
+})
+
 #define SR_SIE      0x00000002UL    /* Supervisor Interrupt Enable */
 #define SR_SPIE     0x00000020UL    /* Previous Supervisor IE */
 #define SR_SPP      0x00000100UL
@@ -82,6 +87,7 @@ void __noreturn efi_enter_kernel(unsigned long entrypoint, unsigned long fdt,
     sstatus_set(SR_SPP);
     csr_reset_sie(0);
     csr_reset_sip(0);
+    csr_reset_sscratch(0);
 	jump_kernel(hartid, fdt);
 }
 
@@ -184,6 +190,12 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
         u64 sstatus = csr_read(0x100);
 	    efi_puts("sstatus:\n");
         efi_put_u64(sstatus);
+        efi_puts("\n");
+    }
+    {
+        u64 sscratch = csr_read(0x140);
+	    efi_puts("sscratch:\n");
+        efi_put_u64(sscratch);
         efi_puts("\n");
     }
 
