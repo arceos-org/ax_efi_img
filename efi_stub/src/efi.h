@@ -55,8 +55,8 @@ typedef struct {
 	u32 tables;
 } efi_system_table_32_t;
 
-typedef union efi_runtime_services efi_runtime_services_t; 
-typedef union efi_boot_services efi_boot_services_t; 
+typedef union efi_runtime_services efi_runtime_services_t;
+typedef union efi_boot_services efi_boot_services_t;
 
 typedef union {
 	struct {
@@ -80,6 +80,7 @@ typedef union {
 typedef union efi_boot_services efi_boot_services_t;
 
 #define EFI_SUCCESS     0
+#define EFI_UNSUPPORTED     ( 3 | (1UL << (BITS_PER_LONG-1)))
 
 /*
  * The UEFI spec and EDK2 reference implementation both define EFI_GUID as
@@ -102,5 +103,30 @@ typedef guid_t efi_guid_t __aligned(__alignof__(u32));
     (c) & 0xff, ((c) >> 8) & 0xff, d } }
 
 #define LOADED_IMAGE_PROTOCOL_GUID      EFI_GUID(0x5b1b31a1, 0x9562, 0x11d2,  0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b)
+
+#define DEVICE_TREE_GUID                EFI_GUID(0xb1b621d5, 0xf19c, 0x41a5,  0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0)
+
+#define RISCV_EFI_BOOT_PROTOCOL_GUID        EFI_GUID(0xccd15fec, 0x6f73, 0x4eec,  0x83, 0x95, 0x3e, 0x69, 0xe4, 0xb9, 0x40, 0xbf)
+
+typedef struct {
+    efi_guid_t guid;
+    u32 table;
+} efi_config_table_32_t;
+
+typedef union {
+    struct {
+        efi_guid_t guid;
+        void *table;
+    };
+    efi_config_table_32_t mixed_mode;
+} efi_config_table_t;
+
+extern int memcmp(const void *cs, const void *ct, size_t count);
+
+static inline int
+efi_guidcmp (efi_guid_t left, efi_guid_t right)
+{
+    return memcmp(&left, &right, sizeof (efi_guid_t));
+}
 
 #endif /* _LINUX_EFI_H */

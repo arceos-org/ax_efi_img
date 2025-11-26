@@ -11,6 +11,8 @@ extern void efi_puts(const char *str);
 extern void efi_put_u64(unsigned long n);
 extern void sbi_puts(const char *str);
 
+extern void *get_fdt(unsigned long *fdt_size);
+
 typedef struct {
 	u16 scan_code;
 	efi_char16_t unicode_char;
@@ -217,6 +219,13 @@ union efi_boot_services {
 };
 
 extern const efi_system_table_t *efi_system_table;
+
+struct riscv_efi_boot_protocol {
+    u64 revision;
+
+    efi_status_t (__efiapi *get_boot_hartid)(struct riscv_efi_boot_protocol *,
+                         unsigned long *boot_hartid);
+};
 
 #define efi_is_native()			(true)
 #define efi_table_attr(inst, attr)	(inst)->attr

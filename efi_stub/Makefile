@@ -4,7 +4,7 @@ PHONY := all clean
 
 TARGET := efi_stub
 
-OBJS := head.o entry.o printk.o
+OBJS := head.o entry.o printk.o fdt.o string.o
 
 OBJS := $(addprefix src/, $(OBJS))
 DEP_FILES := $(patsubst %,%.d,$(OBJS))

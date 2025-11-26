@@ -65,12 +65,13 @@ extern char _end[];
 
 const efi_system_table_t *efi_system_table;
 
+static unsigned long hartid;
+
 typedef void __noreturn (*jump_kernel_func)(unsigned long, unsigned long);
 
 void __noreturn efi_enter_kernel(unsigned long entrypoint, unsigned long fdt,
 				 unsigned long fdt_size)
 {
-    unsigned long hartid = 0;
 	jump_kernel_func jump_kernel = (jump_kernel_func)entrypoint;
 
 	/*
@@ -88,6 +89,13 @@ void __noreturn efi_enter_kernel(unsigned long entrypoint, unsigned long fdt,
     csr_reset_sie(0);
     csr_reset_sip(0);
     csr_reset_sscratch(0);
+
+    {
+        efi_puts("hartid: ");
+        efi_put_u64((u64) hartid);
+        efi_puts("\n");
+    }
+
 	jump_kernel(hartid, fdt);
 }
 
@@ -95,6 +103,38 @@ static u32 get_payload_size(void *image_base)
 {
     u32 *p = (u32 *) (image_base + PAYLOAD_SIZE_1_POS);
     return *p;
+}
+
+static efi_status_t get_boot_hartid_from_efi(void)
+{
+    efi_guid_t boot_protocol_guid = RISCV_EFI_BOOT_PROTOCOL_GUID;
+    struct riscv_efi_boot_protocol *boot_protocol;
+    efi_status_t status;
+
+    status = efi_bs_call(locate_protocol, &boot_protocol_guid, NULL,
+                 (void **)&boot_protocol);
+    if (status != EFI_SUCCESS)
+        return status;
+    return efi_call_proto(boot_protocol, get_boot_hartid, &hartid);
+}
+
+static efi_status_t check_platform_features(void)
+{
+    efi_status_t status;
+
+    status = get_boot_hartid_from_efi();
+    if (status != EFI_SUCCESS) {
+#if 0
+        int ret;
+        ret = get_boot_hartid_from_fdt();
+        if (ret) {
+            efi_err("Failed to get boot hartid!\n");
+            return EFI_UNSUPPORTED;
+        }
+#endif
+            return EFI_UNSUPPORTED;
+    }
+    return EFI_SUCCESS;
 }
 
 /*
@@ -108,6 +148,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
     efi_loaded_image_t *image;
     efi_status_t status;
     efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
+    unsigned long fdt_addr = 0;
+    unsigned long fdt_size = 0;
 
 	WRITE_ONCE(efi_system_table, systab);
 
@@ -186,6 +228,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	efi_puts("before enter.\n");
 	sbi_puts("[SBI]: before enter.\n");
 
+#if 0
     {
         u64 sstatus = csr_read(0x100);
 	    efi_puts("sstatus:\n");
@@ -198,9 +241,24 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
         efi_put_u64(sscratch);
         efi_puts("\n");
     }
+#endif
 
-	//efi_enter_kernel(kernel_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
-	efi_enter_kernel(ARCEOS_BASE, 0, 0);
+    status = check_platform_features();
+    if (status != EFI_SUCCESS) {
+        efi_puts("Failed to check platform features.\n");
+        return status;
+    }
 
+    /* Look for a device tree configuration table entry. */
+    fdt_addr = (unsigned long)get_fdt(&fdt_size);
+    if (fdt_addr) {
+        efi_puts("Using DTB from configuration table\n");
+
+	    efi_puts("fdt_addr:\n");
+        efi_put_u64(fdt_addr);
+        efi_puts("\n");
+    }
+
+	efi_enter_kernel(ARCEOS_BASE, fdt_addr, fdt_size);
 	return 0;
 }

@@ -27,4 +27,14 @@ typedef struct {
 
 #define __aligned_u64 u64 __attribute__((aligned(8)))
 
+#ifndef NULL
+#define NULL    (0)
+#endif
+
+#ifdef CONFIG_64BIT
+#define BITS_PER_LONG 64
+#else
+#define BITS_PER_LONG 32
+#endif /* CONFIG_64BIT */
+
 #endif /* _LINUX_TYPES_H_ */
